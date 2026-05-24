@@ -117,9 +117,62 @@ header = html.Header([
 
     html.Div([
         html.Div('--:--:--', id='header-clock', className='header-time'),
-        html.Span('⚙', className='header-btn', title='Settings (coming soon)'),
+        html.Span('⚙', className='header-btn', id='settings-btn', n_clicks=0, title='Settings'),
     ], className='header-right'),
 ], className='app-header')
+
+# ── Settings Modal ─────────────────────────────────────────────────
+_mstyle = {'background':'rgba(4,6,15,0.98)'}
+settings_modal = dbc.Modal([
+    dbc.ModalHeader(
+        html.Span('⚙  Settings', style={'fontWeight':'700','color':'#f1f5f9','fontSize':'14px','letterSpacing':'0.05em'}),
+        close_button=True,
+        style={**_mstyle, 'borderBottom':'1px solid rgba(255,255,255,0.06)','padding':'16px 20px'},
+    ),
+    dbc.ModalBody([
+        html.Div('DISPLAY', className='sidebar-label', style={'marginBottom':'10px'}),
+        html.Div([
+            html.Div('Chart Type', style={'color':'#94a3b8','fontSize':'12px','marginBottom':'8px'}),
+            dcc.RadioItems(
+                id='set-chart-type',
+                options=[{'label':' Candlestick','value':'candlestick'},
+                         {'label':' Line','value':'line'}],
+                value='candlestick', inline=True,
+                inputStyle={'marginRight':'4px'},
+                labelStyle={'marginRight':'16px','fontSize':'12px','color':'#94a3b8','cursor':'pointer'},
+            ),
+        ], style={'marginBottom':'20px'}),
+
+        html.Hr(style={'borderColor':'rgba(255,255,255,0.06)','margin':'0 0 18px 0'}),
+        html.Div('DATA REFRESH', className='sidebar-label', style={'marginBottom':'10px'}),
+        html.Div([
+            html.Div('Auto Refresh', style={'color':'#94a3b8','fontSize':'12px','marginBottom':'8px'}),
+            dbc.Switch(id='set-auto-refresh', value=True, label='Enabled',
+                      style={'color':'#94a3b8','fontSize':'12px'}),
+        ], style={'marginBottom':'16px'}),
+        html.Div([
+            html.Div('Interval', style={'color':'#94a3b8','fontSize':'12px','marginBottom':'8px'}),
+            dcc.RadioItems(
+                id='set-interval',
+                options=[{'label':' 1 min','value':60_000},
+                         {'label':' 2 min','value':120_000},
+                         {'label':' 5 min','value':300_000}],
+                value=120_000, inline=True,
+                inputStyle={'marginRight':'4px'},
+                labelStyle={'marginRight':'14px','fontSize':'12px','color':'#94a3b8','cursor':'pointer'},
+            ),
+        ], style={'marginBottom':'20px'}),
+
+        html.Hr(style={'borderColor':'rgba(255,255,255,0.06)','margin':'0 0 18px 0'}),
+        html.Div('ABOUT', className='sidebar-label', style={'marginBottom':'10px'}),
+        html.Div([
+            html.Div('StockSense AI  v1.0', style={'color':'#64748b','fontSize':'12px'}),
+            html.Div('LSTM · Prophet · yFinance · Plotly Dash', style={'color':'#475569','fontSize':'11px','marginTop':'4px'}),
+            html.Div('For educational purposes only', style={'color':'#334155','fontSize':'10px','marginTop':'4px'}),
+        ]),
+    ], style={**_mstyle, 'padding':'20px'}),
+], id='settings-modal', is_open=False, size='sm',
+   contentClassName='settings-modal-content')
 
 # ── Sidebar ────────────────────────────────────────────────────────
 sidebar = html.Nav([
@@ -324,6 +377,7 @@ app.layout = html.Div([
     dcc.Interval(id='iv-data',   interval=120_000, n_intervals=0),
     dcc.Interval(id='iv-ticker', interval=300_000, n_intervals=0),
 
+    settings_modal,
     header,
     html.Div([
         sidebar,
@@ -438,8 +492,9 @@ def update_header(data):
     Input('rng-6m','n_clicks'),
     Input('rng-1y','n_clicks'),
     Input('rng-2y','n_clicks'),
+    Input('set-chart-type','value'),
 )
-def overview_chart(data, r1m, r3m, r6m, r1y, r2y):
+def overview_chart(data, r1m, r3m, r6m, r1y, r2y, chart_type):
     import traceback as _tb
     try:
         if not data:
@@ -463,13 +518,20 @@ def overview_chart(data, r1m, r3m, r6m, r1y, r2y):
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                             vertical_spacing=0.05, row_heights=[0.75, 0.25])
 
-        fig.add_trace(go.Candlestick(
-            x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=close,
-            name='OHLC',
-            increasing=dict(line=dict(color='#10b981', width=1), fillcolor='rgba(16,185,129,0.55)'),
-            decreasing=dict(line=dict(color='#ef4444', width=1), fillcolor='rgba(239,68,68,0.55)'),
-            showlegend=False,
-        ), row=1, col=1)
+        if chart_type == 'line':
+            fig.add_trace(go.Scatter(
+                x=df.index, y=close, name='Price',
+                line=dict(color='#00c8ff', width=2),
+                fill='tozeroy', fillcolor='rgba(0,200,255,0.04)',
+            ), row=1, col=1)
+        else:
+            fig.add_trace(go.Candlestick(
+                x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=close,
+                name='OHLC',
+                increasing=dict(line=dict(color='#10b981', width=1), fillcolor='rgba(16,185,129,0.55)'),
+                decreasing=dict(line=dict(color='#ef4444', width=1), fillcolor='rgba(239,68,68,0.55)'),
+                showlegend=False,
+            ), row=1, col=1)
 
         for period, color, ldash in [(20,'#00c8ff','solid'),(50,'#8b5cf6','dot'),(200,'#f59e0b','dot')]:
             sma = close.rolling(period).mean()
@@ -866,6 +928,26 @@ def update_ticker(_):
         except Exception:
             continue
     return items * 2  # duplicate for seamless loop
+
+
+@app.callback(
+    Output('settings-modal', 'is_open'),
+    Input('settings-btn', 'n_clicks'),
+    State('settings-modal', 'is_open'),
+    prevent_initial_call=True,
+)
+def toggle_settings(n, is_open):
+    return not is_open if n else is_open
+
+
+@app.callback(
+    Output('iv-data', 'interval'),
+    Output('iv-data', 'disabled'),
+    Input('set-interval', 'value'),
+    Input('set-auto-refresh', 'value'),
+)
+def apply_refresh_settings(interval, enabled):
+    return interval or 120_000, not enabled
 
 
 if __name__ == '__main__':

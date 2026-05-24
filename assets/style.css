@@ -1048,6 +1048,52 @@ body::before {
 }
 
 /* ================================================================
+   SETTINGS MODAL
+   ================================================================ */
+.settings-modal-content {
+  background: rgba(4,6,15,0.98) !important;
+  border: 1px solid rgba(0,200,255,0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,200,255,0.05) !important;
+  backdrop-filter: blur(20px) !important;
+  color: #94a3b8;
+}
+
+.settings-modal-content .modal-header {
+  background: rgba(4,6,15,0.98);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px 12px 0 0;
+}
+
+.settings-modal-content .modal-body {
+  background: rgba(4,6,15,0.98);
+  border-radius: 0 0 12px 12px;
+}
+
+.settings-modal-content .btn-close {
+  filter: invert(1) opacity(0.4);
+}
+
+.settings-modal-content .btn-close:hover {
+  filter: invert(1) opacity(0.8);
+}
+
+.modal-backdrop {
+  backdrop-filter: blur(4px) !important;
+  background: rgba(0,0,0,0.6) !important;
+}
+
+.form-check-input:checked {
+  background-color: var(--cyan) !important;
+  border-color: var(--cyan) !important;
+}
+
+.form-check-label {
+  color: #94a3b8 !important;
+  font-size: 12px !important;
+}
+
+/* ================================================================
    DROPDOWNS & SELECTS
    ================================================================ */
 .Select-control {
